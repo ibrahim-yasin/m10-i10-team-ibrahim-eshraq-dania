@@ -42,14 +42,14 @@ The TA cross-references this checklist against `git log --author=<email>` on the
 - [ ] `api/deps.py` — `Depends()` functions
 - [ ] `api/Dockerfile` — single-stage Python
 
-### Frontend lead
+### Frontend lead (masha allaw)
 
-- [ ] `web/pages/extract.tsx`
-- [ ] `web/pages/kg.tsx`
-- [ ] `web/pages/rag.tsx`
-- [ ] `web/lib/types.ts` — three TypeScript interfaces mirroring Pydantic
-- [ ] `web/Dockerfile` — multi-stage Node
-- [ ] `tests/frontend/playwright/*.spec.ts` — one per page
+- [x] `web/pages/extract.tsx`
+- [x] `web/pages/kg.tsx`
+- [x] `web/pages/rag.tsx`
+- [x] `web/lib/types.ts` — three TypeScript interfaces mirroring Pydantic
+- [x] `web/Dockerfile` — multi-stage Node
+- [x] `tests/frontend/playwright/*.spec.ts` — one per page
 
 ### Infra-Integration lead
 
