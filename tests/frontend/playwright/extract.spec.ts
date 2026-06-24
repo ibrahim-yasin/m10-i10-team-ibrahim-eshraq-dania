@@ -1,8 +1,11 @@
 // Frontend lead — author this Playwright smoke test.
 // Verifies the /extract page renders, accepts input, and displays
 // typed entity results from the api service.
-import { test, expect } from '@playwright/test';
+import { test, expect } from "@playwright/test";
 
-test.skip('extract page renders and returns entities', async ({ page }) => {
-  // TODO (Frontend lead): implement against the running stack.
+test("/extract renders entity spans for a known input", async ({ page }) => {
+  await page.goto("/extract");
+  await page.locator("textarea").fill("Akira Kurosawa directed Seven Samurai in 1954.");
+  await page.getByRole("button", { name: /Extract/i }).click();
+  await expect(page.locator('[data-testid="entity-span"]').first()).toBeVisible({ timeout: 10_000 });
 });
