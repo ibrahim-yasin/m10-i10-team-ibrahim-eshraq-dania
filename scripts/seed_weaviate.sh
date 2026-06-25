@@ -3,7 +3,7 @@
 #
 # Idempotent — the Python seeder skips chunk_ids already present.
 #
-# TODO (Infra-Integration lead): implement this script.
+# Infra-Integration lead): implement this script.
 # Required:
 # - Read WEAVIATE_URL from the environment (default http://localhost:8080).
 # - Run the seed **inside the api container** via

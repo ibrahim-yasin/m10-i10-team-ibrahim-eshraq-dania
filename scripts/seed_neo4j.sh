@@ -4,7 +4,7 @@
 # Idempotent — `MERGE` and `CREATE CONSTRAINT IF NOT EXISTS` in seed.cypher
 # mean repeat runs do not duplicate nodes.
 #
-# TODO (Infra-Integration lead): implement this script.
+#  (Infra-Integration lead): implement this script.
 # Required:
 # - Read NEO4J_USER and NEO4J_PASSWORD from the environment (loaded
 #   from .env by docker compose).
