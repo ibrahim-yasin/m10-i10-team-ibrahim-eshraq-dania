@@ -6,4 +6,3 @@ test("/rag renders a cited answer", async ({ page }) => {
   await page.getByRole("button", { name: /Ask/i }).click();
   await expect(page.locator('[data-testid="citation-marker"]').first()).toBeVisible({ timeout: 30_000 });
 });
-

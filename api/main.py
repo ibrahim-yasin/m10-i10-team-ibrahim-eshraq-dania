@@ -6,16 +6,20 @@ Discipline gates the autograder enforces:
 - `CORSMiddleware` registered with `allow_origins=[WEB_ORIGIN]`.
 - `/extract`, `/kg/query`, `/rag/answer` use Pydantic shapes from `models.py`.
 - `/kg/query` converts `UnsupportedQueryError` to 422 with structured detail.
-- `/readyz` probes Neo4j (`RETURN 1`) AND Weaviate (`client.is_ready()`)
+- `/readyz` probes Neo4j (`RETURN 1`) AND Weaviate (`client.is_ready())
   within 2 seconds; failure → 503.
 - `/healthz` does NOT touch Neo4j or Weaviate.
 """
+import json
+import logging
 import os
+import time
+import uuid
 from contextlib import asynccontextmanager
 
 import spacy
 import weaviate
-from fastapi import Depends, FastAPI, HTTPException
+from fastapi import Depends, FastAPI, HTTPException, Request
 from fastapi.middleware.cors import CORSMiddleware
 from neo4j import GraphDatabase
 from sentence_transformers import SentenceTransformer
@@ -39,6 +43,9 @@ from .w9b_mapper.errors import UnsupportedQueryError
 from .w9b_mapper.shapes import SUPPORTED_PATTERNS
 
 
+logger = logging.getLogger("api")
+
+
 @asynccontextmanager
 async def lifespan(app: FastAPI):
     app.state.neo4j_driver = GraphDatabase.driver(
@@ -48,15 +55,19 @@ async def lifespan(app: FastAPI):
     app.state.weaviate_client = weaviate.Client(os.environ["WEAVIATE_URL"])
     app.state.nlp = spacy.load("en_core_web_sm")
     app.state.generator = load_generator()
+
     # Same sentence-transformers model the seed used at ingest. The
     # Weaviate class is `vectorizer=none`, so /rag/answer encodes the
     # query externally and queries via `with_near_vector`.
     app.state.embedder = SentenceTransformer("sentence-transformers/all-MiniLM-L6-v2")
+
     yield
+
     app.state.neo4j_driver.close()
 
 
 app = FastAPI(title="M10 Recipe Service", lifespan=lifespan)
+
 app.add_middleware(
     CORSMiddleware,
     allow_origins=[os.environ.get("WEB_ORIGIN", "http://localhost:3000")],
@@ -64,6 +75,31 @@ app.add_middleware(
     allow_methods=["*"],
     allow_headers=["*"],
 )
+
+
+@app.middleware("http")
+async def log_request(request: Request, call_next):
+    """Emit one structured log line per request and attach X-Request-Id."""
+    request_id = str(uuid.uuid4())
+    start = time.time()
+
+    response = await call_next(request)
+
+    latency_ms = round((time.time() - start) * 1000, 2)
+    logger.info(
+        json.dumps(
+            {
+                "request_id": request_id,
+                "method": request.method,
+                "path": request.url.path,
+                "status": response.status_code,
+                "latency_ms": latency_ms,
+            }
+        )
+    )
+
+    response.headers["X-Request-Id"] = request_id
+    return response
 
 
 @app.post("/extract", response_model=ExtractResponse)
@@ -83,6 +119,7 @@ def kg_query(req: KGRequest, session=Depends(get_session)) -> KGResponse:
                 supported_patterns=list(SUPPORTED_PATTERNS),
             ).model_dump(),
         )
+
     rows = [r.data() for r in session.run(cypher, **params)]
     return KGResponse(cypher=cypher, rows=rows, count=len(rows))
 
@@ -109,11 +146,13 @@ def readyz(
     weaviate_client=Depends(get_weaviate),
 ):
     detail = {"neo4j": "unknown", "weaviate": "unknown"}
+
     try:
         session.run("RETURN 1").single()
         detail["neo4j"] = "ok"
     except Exception as exc:
         detail["neo4j"] = f"unavailable: {exc.__class__.__name__}"
+
     try:
         if weaviate_client.is_ready():
             detail["weaviate"] = "ok"
@@ -124,4 +163,5 @@ def readyz(
 
     if detail["neo4j"] != "ok" or detail["weaviate"] != "ok":
         raise HTTPException(status_code=503, detail=detail)
+
     return detail

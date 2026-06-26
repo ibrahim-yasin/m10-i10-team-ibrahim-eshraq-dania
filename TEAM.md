@@ -8,9 +8,9 @@ This file is the team roster artifact for the Module 10 four-service Docker Comp
 
 ## Team Identity
 
-- **Team name:** _(team-chosen identifier — e.g., `team-ibrahim-dania-eshraq`)_
-- **Team Slack channel:** _(cohort Slack channel — e.g., `#m10-team-IDE`)_
-- **Team-formation date:** _(26/6/2026 — the date the instructional team posted the roster)_
+- **Team name:** _(team-chosen identifier — e.g., `super_Meaw`)_
+- **Team Slack channel:** _(cohort Slack channel — e.g., `meaw`)_
+- **Team-formation date:** _(YYYY-MM-DD — the date the instructional team posted the roster)_
 - **Designated team submitter:** _(role token — typically `Infra-Integration lead`)_
 
 ---
@@ -42,14 +42,14 @@ The TA cross-references this checklist against `git log --author=<email>` on the
 - [ ] `api/deps.py` — `Depends()` functions
 - [ ] `api/Dockerfile` — single-stage Python
 
-### Frontend lead
+### Frontend lead (masha allaw)
 
-- [ ] `web/pages/extract.tsx`
-- [ ] `web/pages/kg.tsx`
-- [ ] `web/pages/rag.tsx`
-- [ ] `web/lib/types.ts` — three TypeScript interfaces mirroring Pydantic
-- [ ] `web/Dockerfile` — multi-stage Node
-- [ ] `tests/frontend/playwright/*.spec.ts` — one per page
+- [x] `web/pages/extract.tsx`
+- [x] `web/pages/kg.tsx`
+- [x] `web/pages/rag.tsx`
+- [x] `web/lib/types.ts` — three TypeScript interfaces mirroring Pydantic
+- [x] `web/Dockerfile` — multi-stage Node
+- [x] `tests/frontend/playwright/*.spec.ts` — one per page
 
 ### Infra-Integration lead
 
@@ -92,4 +92,4 @@ When all three role branches merge to the team fork's `main` and `docker compose
 1. The team submitter pastes the team fork URL into TalentLMS → Module 10 → Integration Task.
 2. Each Team Member separately submits the participation-confirmation TalentLMS unit naming their assigned role and the files they authored.
 
-The two-tier grading model (team tier 60 pts + per-role tier 40 pts) is described in the team-facing Integration Spec at https://github.com/ibrahim-yasin/m10-i10-team-ibrahim-eshraq-dania.git.
+The two-tier grading model (team tier 60 pts + per-role tier 40 pts) is described in the team-facing Integration Spec at <https://LevelUp-Applied-AI.github.io/aispire-14005-pages/modules/module-10/4ba363ed>.
