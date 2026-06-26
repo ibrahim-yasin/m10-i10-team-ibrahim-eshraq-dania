@@ -33,23 +33,28 @@ CONTRIBUTING.md           Branch convention + internal-PR protocol
 ```
 
 ## Bring up the stack (runbook — Infra-Integration lead drafts this)
-
 ```bash
-cp .env.example .env  # edit values; never commit .env
+# 1. Copy the environment template and fill in your credentials
+cp .env.example .env
 
+# 2. Build and start the multi-service stack in detached mode
 docker compose up -d --build
+
+# 3. Poll and verify health status for all 4 core services
 bash scripts/healthcheck_stack.sh
+
+# 4. Seed both databases with text and vector fixtures
 bash scripts/seed_neo4j.sh
 bash scripts/seed_weaviate.sh
 
-# Demo curl
+# 5. Verify the full pipeline via a demo curl request
 curl -s -X POST http://localhost:8000/rag/answer \
   -H 'Content-Type: application/json' \
   -d '{"question": "How do I prep ginger for stir-fry?"}' | jq .
 
-# Open the web UI at http://localhost:3000/rag
+# 6. Open the web UI in your browser to test the interactive RAG interface
+# URL: http://localhost:3000/rag
 ```
-
 ## Submission
 
 Team submission (one per team): the team submitter pastes the team
