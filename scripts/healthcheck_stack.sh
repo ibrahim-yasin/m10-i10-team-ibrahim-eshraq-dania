@@ -1,74 +1,56 @@
 #!/usr/bin/env bash
-# Poll `docker compose ps` until all four services report healthy or
-# until the 90s budget expires.
-#
-#  (Infra-Integration lead): implement this script.
-# - Loop with 2s sleep, up to 45 iterations.
-# - Use `docker compose ps --format json` and check Health=="healthy"
-#   for api, web, neo4j, weaviate.
-# - Exit 0 on all healthy; exit 1 on timeout.
-
 set -euo pipefail
 
-echo "Starting stack healthcheck polling (90s budget)..."
+if [ ! -f "docker-compose.yml" ]; then
+  echo "ERROR: run from repo root"
+  exit 1
+fi
 
+echo "Checking stack healthy state..."
 
-for i in {1..45}; do
-  STATUS_JSON="$(docker compose ps --format json)"
+docker compose ps
 
-  COUNT="$(
-    printf '%s\n' "$STATUS_JSON" | python -c '
-import sys, json
+python - <<'PY'
+import json
+import subprocess
+import sys
 
-raw = sys.stdin.read().strip()
-if not raw:
-    print(0)
-    raise SystemExit
+expected = {"neo4j", "weaviate", "api", "web"}
 
-services = {"api", "web", "neo4j", "weaviate"}
-healthy_services = set()
+result = subprocess.run(
+    ["docker", "compose", "ps", "--format", "json"],
+    text=True,
+    capture_output=True,
+    check=True,
+)
 
-# docker compose ps --format json can appear in different shapes:
-# 1) JSON array: [{"Service":"api","Health":"healthy",...}, ...]
-# 2) newline-delimited JSON objects: {"Service":"api",...}\n{"Service":"web",...}
-# so we support both.
+services = {}
+for line in result.stdout.splitlines():
+    line = line.strip()
+    if not line:
+        continue
+    item = json.loads(line)
+    services[item.get("Service")] = item
 
-items = []
-try:
-    parsed = json.loads(raw)
-    if isinstance(parsed, list):
-        items = parsed
-    elif isinstance(parsed, dict):
-        items = [parsed]
-except json.JSONDecodeError:
-    for line in raw.splitlines():
-        line = line.strip()
-        if not line:
-            continue
-        try:
-            items.append(json.loads(line))
-        except json.JSONDecodeError:
-            pass
+missing = expected - set(services)
+if missing:
+    print(f"Missing services: {sorted(missing)}")
+    sys.exit(1)
 
-for item in items:
-    service = str(item.get("Service", "")).strip()
-    health = str(item.get("Health", "")).strip().lower()
-    if service in services and health == "healthy":
-        healthy_services.add(service)
+for name in sorted(expected):
+    state = services[name].get("Health") or services[name].get("State") or ""
+    status = str(state).lower()
+    if "healthy" not in status:
+        print(f"{name} is not healthy: {services[name]}")
+        sys.exit(1)
 
-print(len(healthy_services))
-'
-  )"
+print("All services are healthy.")
+PY
 
-  if [ "$COUNT" -eq 4 ]; then
-    echo "Attempt $i/45: $COUNT/4 healthy"
-    echo "All services healthy"
-    exit 0
-  fi
+echo "Checking api /healthz..."
+docker compose exec -T api python -c "import urllib.request; urllib.request.urlopen('http://localhost:8000/healthz', timeout=5)"
 
-  echo "Attempt $i/45: $COUNT/4 healthy"
-  sleep 2
-done
+echo "Checking web can reach api via Compose DNS..."
+docker compose exec -T web node -e "fetch('http://api:8000/healthz').then(r=>process.exit(r.ok?0:1)).catch(()=>process.exit(1))"
 
-echo "FAILED: timeout"
-exit 1
+echo "Stack healthcheck complete: healthy."

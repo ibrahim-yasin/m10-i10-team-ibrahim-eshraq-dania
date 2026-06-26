@@ -1,28 +1,25 @@
 #!/usr/bin/env bash
-# Seed the running Neo4j container with the recipe fixture.
-#
-# Idempotent — `MERGE` and `CREATE CONSTRAINT IF NOT EXISTS` in seed.cypher
-# mean repeat runs do not duplicate nodes.
-#
-#  (Infra-Integration lead): implement this script.
-# Required:
-# - Read NEO4J_USER and NEO4J_PASSWORD from the environment (loaded
-#   from .env by docker compose).
-# - Pipe seed.cypher into the neo4j container via
-#   `docker compose exec -T neo4j cypher-shell -u $NEO4J_USER -p $NEO4J_PASSWORD`.
-
-
 set -euo pipefail
 
+# Run this script from the repo root: the directory containing docker-compose.yml
+if [ ! -f "docker-compose.yml" ]; then
+  echo "ERROR: Run this script from the repo root, not from scripts/."
+  exit 1
+fi
 
-ROOT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
+if [ ! -f "api/seed.cypher" ]; then
+  echo "ERROR: api/seed.cypher not found"
+  exit 1
+fi
 
-source "$ROOT_DIR/.env"
+# Defaults match the usual Neo4j Compose auth: NEO4J_AUTH=neo4j/password
+: "${NEO4J_USER:=neo4j}"
+: "${NEO4J_PASSWORD:=Team1234}"
 
-# Execute cypher-shell inside the running neo4j container in non-TTY mode
-# and pipe the seed.cypher fixture file into the database using the loaded credentials
-docker compose exec -T neo4j \
-  cypher-shell -u "$NEO4J_USER" -p "$NEO4J_PASSWORD" \
-  < "$ROOT_DIR/api/seed.cypher"
-# - Print a one-line confirmation.
-echo "Neo4j database has been successfully seeded with recipe fixture."
+echo "Seeding Neo4j..."
+docker compose exec -T neo4j cypher-shell \
+  -u "$NEO4J_USER" \
+  -p "$NEO4J_PASSWORD" \
+  < api/seed.cypher
+
+echo "Neo4j seed complete."
