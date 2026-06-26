@@ -8,6 +8,11 @@ Generator called with `do_sample=False` for reproducibility.
 """
 import re
 from typing import Tuple
+import logging
+import os
+import re
+from concurrent.futures import ThreadPoolExecutor, TimeoutError
+from typing import Tuple
 
 PROMPT_TEMPLATE = """\
 You are answering a recipe question. Use ONLY the numbered sources below.
@@ -22,6 +27,20 @@ Answer:"""
 
 SENTINEL = "I cannot answer this from the available sources"
 CITATION_PATTERN = re.compile(r"\[(\d+)\]")
+logger = logging.getLogger("api.rag")
+GENERATOR_TIMEOUT_SECONDS = float(os.getenv("GENERATOR_TIMEOUT_SECONDS", "30"))
+
+def generate_with_timeout(generator, prompt: str, timeout_seconds: float) -> str:
+    """Run generator with a per-call timeout."""
+    with ThreadPoolExecutor(max_workers=1) as executor:
+        future = executor.submit(
+            generator,
+            prompt,
+            max_new_tokens=256,
+            do_sample=False,
+        )
+        output = future.result(timeout=timeout_seconds)
+    return output[0]["generated_text"]
 
 
 def assemble_prompt(question: str, chunks: list[dict]) -> Tuple[str, dict[int, dict]]:
@@ -79,12 +98,17 @@ def compose_rag(question: str, embedder, weaviate_client, generator, k: int = 4)
             "score": 1.0 - c["_additional"]["distance"],
         }
         for c in raw_query["data"]["Get"]["Chunk"]
-    ]
+    ]   
     if not retrieved:
         return {"answer": SENTINEL, "citations": [], "confidence": 0.0}
 
     prompt, numbered = assemble_prompt(question, retrieved)
-    raw = generator(prompt, max_new_tokens=256, do_sample=False)[0]["generated_text"]
+    try:
+     raw = generate_with_timeout(generator, prompt, GENERATOR_TIMEOUT_SECONDS)
+    except TimeoutError:
+     logger.warning("rag_generator_timeout", extra={"timeout_seconds": GENERATOR_TIMEOUT_SECONDS})
+     return {"answer": SENTINEL, "citations": [], "confidence": 0.0}    
+   
     citations = extract_citations(raw, numbered)
     if not citations:
         return {"answer": SENTINEL, "citations": [], "confidence": 0.0}
